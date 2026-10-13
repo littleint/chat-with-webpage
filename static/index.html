@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LlamaIndex Web Reader — Interactive AI Q&A</title>
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <!-- Background dynamic glow shapes -->
+    <div class="bg-glow glow-1"></div>
+    <div class="bg-glow glow-2"></div>
+    <div class="bg-glow glow-3"></div>
+
+    <div class="app-container">
+        <!-- Top Navbar -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="brand-icon">
+                    <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+                        <path d="M2 12h20"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1>LlamaReader AI</h1>
+                    <p class="subtitle">Chat with any webpage using LlamaIndex & Groq</p>
+                </div>
+            </div>
+
+            <div class="header-status">
+                <div id="statusIndicator" class="status-badge idle">
+                    <span class="status-dot"></span>
+                    <span id="statusText">No URL Indexed</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- URL Input Card -->
+        <section class="url-card glass-panel">
+            <div class="url-input-wrapper">
+                <div class="url-icon">
+                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                    </svg>
+                </div>
+                <input type="url" id="urlInput"
+                    placeholder="Enter any webpage URL (e.g., https://en.wikipedia.org/wiki/India)..."
+                    autocomplete="off" />
+                <button id="indexBtn" class="btn-primary">
+                    <span class="btn-text">Index Page</span>
+                    <span class="btn-loader spinner" style="display: none;"></span>
+                </button>
+            </div>
+
+            <!-- Quick Suggestions -->
+            <div class="quick-links">
+                <span class="quick-label">Try sample:</span>
+                <button class="chip" data-url="https://en.wikipedia.org/wiki/India">🇮🇳 India</button>
+                <button class="chip" data-url="https://en.wikipedia.org/wiki/Artificial_intelligence">🤖 AI
+                    Overview</button>
+                <button class="chip" data-url="https://en.wikipedia.org/wiki/Space_exploration">🚀 Space
+                    Exploration</button>
+                <button class="chip" data-url="https://docs.python.org/3/">🐍 Python Docs</button>
+            </div>
+        </section>
+
+        <!-- Main Chat Area -->
+        <main class="chat-container glass-panel">
+            <div id="chatMessages" class="chat-messages">
+                <!-- Welcome Empty State -->
+                <div id="welcomeState" class="welcome-card">
+                    <div class="welcome-icon-glow">
+                        <svg viewBox="0 0 24 24" width="42" height="42" stroke="currentColor" stroke-width="1.8"
+                            fill="none">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                    </div>
+                    <h2>Ask Questions About Any Webpage</h2>
+                    <p>Paste a link above, click <strong>Index Page</strong>, and start querying instantly. The AI
+                        models stay active in your RAM for instant answers.</p>
+
+                    <div class="features-grid">
+                        <div class="feature-item">
+                            <span class="feature-badge">⚡ Ultra Fast</span>
+                            <p>Powered by Groq's high-speed inference engine.</p>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-badge">🧠 Zero Weight Reloading</span>
+                            <p>Embedding models stay warm in FastAPI memory.</p>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-badge">🎯 Precise RAG</span>
+                            <p>LlamaIndex retrieves relevant context accurately.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Input Bar -->
+            <div class="chat-input-container">
+                <div class="chat-input-wrapper">
+                    <textarea id="questionInput" rows="1"
+                        placeholder="Ask a question about the indexed webpage (Press Enter to send)..."
+                        disabled></textarea>
+                    <button id="sendBtn" class="btn-send" disabled title="Send question">
+                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2"
+                            fill="none">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
+                </div>
+                <div class="input-helper">
+                    <span>Press <strong>Enter</strong> to send, <strong>Shift + Enter</strong> for a new line</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Frontend Script -->
+    <script src="/static/js/app.js"></script>
+</body>
+
+</html>
