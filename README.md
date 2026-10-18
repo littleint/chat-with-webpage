@@ -10,8 +10,9 @@ Extract text from any public webpage, index it into a vector store in memory, an
 
 - **Live Web Scraping**: Clean text extraction using `requests` and `html2text`.
 - **In-Memory Vector Search**: Documents are embedded and indexed via LlamaIndex (`VectorStoreIndex`).
-- **Interactive UI**: Clean, responsive web interface for indexing URLs and chatting with web pages.
-- **FastAPI Backend**: Asynchronous REST endpoints for page indexing and querying.
+- **Conversational Memory**: Retains multi-turn dialogue context directly in RAM using `ChatMemoryBuffer` and `condense_plus_context` mode.
+- **Interactive UI**: Clean, responsive web interface with single-click chat reset and real-time status tracking.
+- **FastAPI Backend**: Asynchronous REST endpoints for page indexing, multi-turn querying, and memory management.
 
 ---
 

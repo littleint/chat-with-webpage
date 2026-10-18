@@ -5,6 +5,7 @@ const btnText = indexBtn.querySelector(".btn-text");
 const btnLoader = indexBtn.querySelector(".btn-loader");
 const statusIndicator = document.getElementById("statusIndicator");
 const statusText = document.getElementById("statusText");
+const clearChatBtn = document.getElementById("clearChatBtn");
 
 const chatMessages = document.getElementById("chatMessages");
 const welcomeState = document.getElementById("welcomeState");
@@ -38,6 +39,7 @@ function setReadyState(url) {
 
     questionInput.disabled = false;
     sendBtn.disabled = false;
+    if (clearChatBtn) clearChatBtn.style.display = "inline-flex";
     questionInput.placeholder = "Ask anything about this webpage...";
     questionInput.focus();
 }
@@ -83,9 +85,10 @@ async function handleIndexUrl() {
 
         setReadyState(data.url);
         
-        // Add a system announcement to the chat
+        // Reset chat UI and announce new indexed page with active memory
         hideWelcome();
-        appendMessage("assistant", `I have finished reading and indexing **[${data.url}](${data.url})**! You can now ask me any questions about its content.`);
+        chatMessages.innerHTML = "";
+        appendMessage("assistant", `I have finished reading and indexing **[${data.url}](${data.url})**! You can now ask me questions about its content. Conversational memory is active in RAM.`);
 
     } catch (err) {
         alert("Failed to index: " + err.message);
@@ -107,7 +110,29 @@ chips.forEach(chip => {
     });
 });
 
-// 5. Handle Question Asking
+// 5. Handle Clear Chat (RAM Memory Reset)
+if (clearChatBtn) {
+    clearChatBtn.addEventListener("click", handleClearChat);
+}
+
+async function handleClearChat() {
+    if (!isIndexed) return;
+    try {
+        clearChatBtn.disabled = true;
+        const res = await fetch("/api/reset", { method: "POST" });
+        if (res.ok) {
+            chatMessages.innerHTML = "";
+            appendMessage("assistant", "🧹 Memory cleared! You can now start a fresh conversation about this webpage.");
+            questionInput.focus();
+        }
+    } catch (err) {
+        console.error("Failed to reset chat memory:", err);
+    } finally {
+        clearChatBtn.disabled = false;
+    }
+}
+
+// 6. Handle Question Asking
 sendBtn.addEventListener("click", handleSendQuestion);
 
 questionInput.addEventListener("keydown", (e) => {

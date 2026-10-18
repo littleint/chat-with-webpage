@@ -2,15 +2,17 @@ import requests
 import html2text
 from typing import Optional, Tuple
 from llama_index.core import VectorStoreIndex, Document
+from llama_index.core.memory import ChatMemoryBuffer
 
 class RAGEngine:
-    """Manages web scraping, document indexing, and querying."""
+    """Manages web scraping, document indexing, and querying with conversational memory."""
     
     def __init__(self):
         self.current_url: Optional[str] = None
         self.current_title: Optional[str] = None
         self.index: Optional[VectorStoreIndex] = None
-        self.query_engine = None
+        self.chat_engine = None
+        self.memory: Optional[ChatMemoryBuffer] = None
 
     def scrape_webpage(self, url: str) -> str:
         """Fetch webpage HTML with browser headers and convert to clean text."""
@@ -45,27 +47,44 @@ class RAGEngine:
             
             print("Building vector index...", flush=True)
             self.index = VectorStoreIndex.from_documents([doc])
-            self.query_engine = self.index.as_query_engine()
+            
+            # Initialize in-RAM conversational memory buffer (token limit prevents LLM overload)
+            self.memory = ChatMemoryBuffer.from_defaults(token_limit=3000)
+            self.chat_engine = self.index.as_chat_engine(
+                chat_mode="condense_plus_context",
+                memory=self.memory,
+                verbose=False
+            )
             self.current_url = url
 
             return True, f"Successfully indexed page ({len(clean_text)} characters loaded)."
         except Exception as e:
             return False, f"Failed to index URL: {str(e)}"
 
-    def query(self, question: str) -> str:
-        """Query the currently loaded webpage."""
-        if not self.query_engine:
+    def chat(self, question: str) -> str:
+        """Query the currently loaded webpage with conversational memory."""
+        if not self.chat_engine:
             raise ValueError("No webpage has been indexed yet. Please index a URL first.")
 
-        response = self.query_engine.query(question)
+        response = self.chat_engine.chat(question)
         return str(response)
+
+    def query(self, question: str) -> str:
+        """Alias to chat() for backwards compatibility."""
+        return self.chat(question)
+
+    def reset_chat(self) -> None:
+        """Clear conversation memory buffer stored in RAM."""
+        if self.memory:
+            self.memory.reset()
 
     def get_status(self) -> dict:
         """Return the current indexing status."""
         return {
-            "is_indexed": self.query_engine is not None,
+            "is_indexed": self.chat_engine is not None,
             "current_url": self.current_url
         }
 
 # Singleton instance to hold state across HTTP requests
 rag_engine = RAGEngine()
+

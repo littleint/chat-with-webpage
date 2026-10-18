@@ -68,6 +68,15 @@ async def query_index(request: QueryRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Query error: {str(e)}")
 
+@app.post("/api/reset")
+async def reset_chat():
+    """Reset the conversational memory buffer in RAM."""
+    rag_engine.reset_chat()
+    return {
+        "status": "success",
+        "message": "Conversation memory reset successfully."
+    }
+
 # Mount static files directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
