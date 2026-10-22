@@ -1,8 +1,23 @@
 // Elements
+const tabUrlBtn = document.getElementById("tabUrlBtn");
+const tabFileBtn = document.getElementById("tabFileBtn");
+const urlTabContent = document.getElementById("urlTabContent");
+const fileTabContent = document.getElementById("fileTabContent");
+
 const urlInput = document.getElementById("urlInput");
 const indexBtn = document.getElementById("indexBtn");
 const btnText = indexBtn.querySelector(".btn-text");
 const btnLoader = indexBtn.querySelector(".btn-loader");
+
+const dropzone = document.getElementById("dropzone");
+const fileInput = document.getElementById("fileInput");
+const selectedFileInfo = document.getElementById("selectedFileInfo");
+const selectedFileName = document.getElementById("selectedFileName");
+const cancelFileBtn = document.getElementById("cancelFileBtn");
+const uploadFileBtn = document.getElementById("uploadFileBtn");
+const uploadBtnText = uploadFileBtn.querySelector(".btn-text");
+const uploadBtnLoader = uploadFileBtn.querySelector(".btn-loader");
+
 const statusIndicator = document.getElementById("statusIndicator");
 const statusText = document.getElementById("statusText");
 const clearChatBtn = document.getElementById("clearChatBtn");
@@ -13,34 +28,91 @@ const questionInput = document.getElementById("questionInput");
 const sendBtn = document.getElementById("sendBtn");
 const chips = document.querySelectorAll(".chip");
 
+const sourceCard = document.getElementById("sourceCard");
+const collapsedBar = document.getElementById("collapsedBar");
+const sourceCardBody = document.getElementById("sourceCardBody");
+const activeSourceIcon = document.getElementById("activeSourceIcon");
+const activeSourceTitle = document.getElementById("activeSourceTitle");
+const toggleSourceBtn = document.getElementById("toggleSourceBtn");
+
 let isIndexed = false;
 let isIndexing = false;
 let isQuerying = false;
+let selectedFile = null;
+let isSourceCollapsed = false;
 
-// 1. Initial State Check
+// Toggle collapsible source card
+if (toggleSourceBtn) {
+    toggleSourceBtn.addEventListener("click", () => {
+        setSourceCollapsed(!isSourceCollapsed);
+    });
+}
+
+function setSourceCollapsed(collapsed) {
+    isSourceCollapsed = collapsed;
+    if (collapsed) {
+        sourceCard.classList.add("is-collapsed");
+        collapsedBar.style.display = "flex";
+        sourceCardBody.style.display = "none";
+    } else {
+        sourceCard.classList.remove("is-collapsed");
+        collapsedBar.style.display = "none";
+        sourceCardBody.style.display = "flex";
+    }
+}
+
+// 1. Tab Switching
+tabUrlBtn.addEventListener("click", () => switchTab("url"));
+tabFileBtn.addEventListener("click", () => switchTab("file"));
+
+function switchTab(tab) {
+    if (tab === "url") {
+        tabUrlBtn.classList.add("active");
+        tabFileBtn.classList.remove("active");
+        urlTabContent.classList.add("active");
+        fileTabContent.classList.remove("active");
+    } else {
+        tabFileBtn.classList.add("active");
+        tabUrlBtn.classList.remove("active");
+        fileTabContent.classList.add("active");
+        urlTabContent.classList.remove("active");
+    }
+}
+
+// 2. Initial State Check
 async function checkStatus() {
     try {
         const res = await fetch("/api/status");
         const data = await res.json();
-        if (data.is_indexed && data.current_url) {
-            setReadyState(data.current_url);
+        if (data.is_indexed && data.source_name) {
+            setReadyState(data.source_name, data.source_type);
         }
     } catch (e) {
         console.error("Status check failed", e);
     }
 }
 
-// 2. Set Ready State
-function setReadyState(url) {
+// 3. Set Ready State
+function setReadyState(sourceName, sourceType = "url") {
     isIndexed = true;
-    urlInput.value = url;
     statusIndicator.className = "status-badge ready";
-    statusText.textContent = "Ready: " + truncateUrl(url);
+    
+    const isFile = sourceType === "file";
+    const displayLabel = isFile 
+        ? `📄 ${sourceName}` 
+        : `🔗 ${truncateUrl(sourceName)}`;
+
+    statusText.textContent = `Ready: ${displayLabel}`;
+    
+    // Update collapsed bar details
+    if (activeSourceIcon) activeSourceIcon.textContent = isFile ? "📄" : "🔗";
+    if (activeSourceTitle) activeSourceTitle.textContent = sourceName;
+    setSourceCollapsed(true);
 
     questionInput.disabled = false;
     sendBtn.disabled = false;
     if (clearChatBtn) clearChatBtn.style.display = "inline-flex";
-    questionInput.placeholder = "Ask anything about this webpage...";
+    questionInput.placeholder = `Ask anything about ${sourceName}...`;
     questionInput.focus();
 }
 
@@ -53,7 +125,7 @@ function truncateUrl(url) {
     }
 }
 
-// 3. Handle Webpage Indexing
+// 4. Handle Webpage Indexing
 indexBtn.addEventListener("click", handleIndexUrl);
 urlInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") handleIndexUrl();
@@ -83,12 +155,10 @@ async function handleIndexUrl() {
             throw new Error(data.detail || "Indexing failed");
         }
 
-        setReadyState(data.url);
-        
-        // Reset chat UI and announce new indexed page with active memory
+        setReadyState(data.source_name, "url");
         hideWelcome();
         chatMessages.innerHTML = "";
-        appendMessage("assistant", `I have finished reading and indexing **[${data.url}](${data.url})**! You can now ask me questions about its content. Conversational memory is active in RAM.`);
+        appendMessage("assistant", `I have finished reading and indexing **[${data.source_name}](${data.source_name})**! You can now ask questions about it.`);
 
     } catch (err) {
         alert("Failed to index: " + err.message);
@@ -97,12 +167,105 @@ async function handleIndexUrl() {
     } finally {
         isIndexing = false;
         indexBtn.disabled = false;
-        btnText.textContent = "Index Page";
+        btnText.textContent = "Index Webpage";
         btnLoader.style.display = "none";
     }
 }
 
-// 4. Sample URL Chips
+// 5. Handle File Selection & Drag-and-Drop
+dropzone.addEventListener("click", (e) => {
+    if (e.target.id === "cancelFileBtn") return;
+    fileInput.click();
+});
+
+fileInput.addEventListener("change", (e) => {
+    if (e.target.files && e.target.files[0]) {
+        setSelectedFile(e.target.files[0]);
+    }
+});
+
+dropzone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropzone.classList.add("dragover");
+});
+
+dropzone.addEventListener("dragleave", () => {
+    dropzone.classList.remove("dragover");
+});
+
+dropzone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropzone.classList.remove("dragover");
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        setSelectedFile(e.dataTransfer.files[0]);
+    }
+});
+
+cancelFileBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    clearSelectedFile();
+});
+
+function setSelectedFile(file) {
+    selectedFile = file;
+    selectedFileName.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    selectedFileInfo.style.display = "inline-flex";
+    uploadFileBtn.disabled = false;
+}
+
+function clearSelectedFile() {
+    selectedFile = null;
+    fileInput.value = "";
+    selectedFileInfo.style.display = "none";
+    uploadFileBtn.disabled = true;
+}
+
+// 6. Handle File Upload & Indexing
+uploadFileBtn.addEventListener("click", handleUploadFile);
+
+async function handleUploadFile() {
+    if (!selectedFile || isIndexing) return;
+
+    isIndexing = true;
+    uploadFileBtn.disabled = true;
+    uploadBtnText.textContent = "Reading & Indexing...";
+    uploadBtnLoader.style.display = "inline-block";
+
+    statusIndicator.className = "status-badge loading";
+    statusText.textContent = `Processing ${selectedFile.name}...`;
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    try {
+        const res = await fetch("/api/upload", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.detail || "File processing failed");
+        }
+
+        setReadyState(data.source_name, "file");
+        hideWelcome();
+        chatMessages.innerHTML = "";
+        appendMessage("assistant", `Successfully indexed document **${data.source_name}**! You can now ask questions about this file.`);
+
+    } catch (err) {
+        alert("Failed to upload: " + err.message);
+        statusIndicator.className = "status-badge idle";
+        statusText.textContent = "Upload Failed";
+    } finally {
+        isIndexing = false;
+        uploadFileBtn.disabled = false;
+        uploadBtnText.textContent = "Process & Index Document";
+        uploadBtnLoader.style.display = "none";
+    }
+}
+
+// 7. Sample URL Chips
 chips.forEach(chip => {
     chip.addEventListener("click", () => {
         urlInput.value = chip.dataset.url;
@@ -110,7 +273,7 @@ chips.forEach(chip => {
     });
 });
 
-// 5. Handle Clear Chat (RAM Memory Reset)
+// 8. Handle Clear Chat (RAM Memory Reset)
 if (clearChatBtn) {
     clearChatBtn.addEventListener("click", handleClearChat);
 }
@@ -122,7 +285,7 @@ async function handleClearChat() {
         const res = await fetch("/api/reset", { method: "POST" });
         if (res.ok) {
             chatMessages.innerHTML = "";
-            appendMessage("assistant", "🧹 Memory cleared! You can now start a fresh conversation about this webpage.");
+            appendMessage("assistant", "🧹 Memory cleared! You can now ask fresh questions.");
             questionInput.focus();
         }
     } catch (err) {
@@ -132,7 +295,7 @@ async function handleClearChat() {
     }
 }
 
-// 6. Handle Question Asking
+// 9. Handle Question Asking
 sendBtn.addEventListener("click", handleSendQuestion);
 
 questionInput.addEventListener("keydown", (e) => {
@@ -142,7 +305,6 @@ questionInput.addEventListener("keydown", (e) => {
     }
 });
 
-// Auto-expand textarea height
 questionInput.addEventListener("input", () => {
     questionInput.style.height = "auto";
     questionInput.style.height = Math.min(questionInput.scrollHeight, 120) + "px";
@@ -188,7 +350,7 @@ async function handleSendQuestion() {
     }
 }
 
-// 6. UI Helpers
+// 10. UI Helpers
 function hideWelcome() {
     if (welcomeState) {
         welcomeState.style.display = "none";
@@ -244,23 +406,16 @@ function removeThinkingBubble(id) {
     if (el) el.remove();
 }
 
-// Basic markdown formatter (bold, lists, code, links, newlines)
 function formatMarkdown(text) {
     let html = text
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
 
-    // Markdown bold: **text** or __text__
     html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-    
-    // Markdown inline code: `code`
     html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
-
-    // Links: [text](url)
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; text-decoration: underline;">$1</a>');
 
-    // Split lines for list and paragraph processing
     const lines = html.split("\n");
     let inList = false;
     let result = [];

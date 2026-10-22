@@ -1,70 +1,66 @@
-import requests
-import html2text
-from typing import Optional, Tuple
+import os
+from typing import Optional, List, Tuple
 from llama_index.core import VectorStoreIndex, Document
 from llama_index.core.memory import ChatMemoryBuffer
+from app.loaders import load_web_url, load_pdf_file, load_txt_file
 
 class RAGEngine:
-    """Manages web scraping, document indexing, and querying with conversational memory."""
-    
+    """Manages document ingestion (Web, PDF, TXT), indexing, and conversational memory."""
+
     def __init__(self):
-        self.current_url: Optional[str] = None
-        self.current_title: Optional[str] = None
+        self.source_type: Optional[str] = None  # "url" or "file"
+        self.source_name: Optional[str] = None  # URL or File Name
         self.index: Optional[VectorStoreIndex] = None
         self.chat_engine = None
         self.memory: Optional[ChatMemoryBuffer] = None
 
-    def scrape_webpage(self, url: str) -> str:
-        """Fetch webpage HTML with browser headers and convert to clean text."""
-        headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            )
-        }
-        response = requests.get(url, headers=headers, timeout=25)
-        response.raise_for_status()
-
-        # Convert HTML to Markdown text
-        text_maker = html2text.HTML2Text()
-        text_maker.ignore_links = True
-        text_maker.ignore_images = True
-        markdown_text = text_maker.handle(response.text)
-
-        # Slice to first 45,000 characters for fast CPU embedding and reasoning
-        return markdown_text[:45000]
-
-    def index_url(self, url: str) -> Tuple[bool, str]:
-        """Scrape and index a new webpage URL into memory."""
+    def _build_index(self, documents: List[Document], source_type: str, source_name: str) -> Tuple[bool, str]:
+        """Internal helper to vectorize documents and set up chat engine with memory."""
         try:
-            print(f"Scraping {url}...", flush=True)
-            clean_text = self.scrape_webpage(url)
+            print(f"Building vector index for {source_name} ({len(documents)} document chunk(s))...", flush=True)
+            self.index = VectorStoreIndex.from_documents(documents)
 
-            if not clean_text or len(clean_text.strip()) < 50:
-                return False, "Could not extract readable text from the provided URL."
-
-            doc = Document(text=clean_text, metadata={"url": url})
-            
-            print("Building vector index...", flush=True)
-            self.index = VectorStoreIndex.from_documents([doc])
-            
-            # Initialize in-RAM conversational memory buffer (token limit prevents LLM overload)
+            # In-RAM conversational memory buffer
             self.memory = ChatMemoryBuffer.from_defaults(token_limit=3000)
             self.chat_engine = self.index.as_chat_engine(
                 chat_mode="condense_plus_context",
                 memory=self.memory,
                 verbose=False
             )
-            self.current_url = url
+            self.source_type = source_type
+            self.source_name = source_name
 
-            return True, f"Successfully indexed page ({len(clean_text)} characters loaded)."
+            return True, f"Successfully indexed '{source_name}' ({len(documents)} parts loaded)."
+        except Exception as e:
+            return False, f"Failed to build vector index: {str(e)}"
+
+    def index_url(self, url: str) -> Tuple[bool, str]:
+        """Scrape and index a webpage URL."""
+        try:
+            docs = load_web_url(url)
+            return self._build_index(docs, source_type="url", source_name=url)
         except Exception as e:
             return False, f"Failed to index URL: {str(e)}"
 
+    def index_file(self, temp_file_path: str, filename: str) -> Tuple[bool, str]:
+        """Load and index a PDF or TXT file."""
+        try:
+            ext = os.path.splitext(filename)[1].lower()
+            if ext == ".pdf":
+                docs = load_pdf_file(temp_file_path, filename=filename)
+            elif ext in [".txt", ".md", ".log", ".csv", ".json"]:
+                docs = load_txt_file(temp_file_path, filename=filename)
+            else:
+                return False, f"Unsupported file type: {ext}. Please upload a PDF or TXT file."
+
+            return self._build_index(docs, source_type="file", source_name=filename)
+        except Exception as e:
+            return False, f"Failed to index file: {str(e)}"
+
     def chat(self, question: str) -> str:
-        """Query the currently loaded webpage with conversational memory."""
+        """Query the active index with conversational memory."""
         if not self.chat_engine:
-            raise ValueError("No webpage has been indexed yet. Please index a URL first.")
+            raise ValueError("No document or webpage has been indexed yet. Please upload a file or enter a URL first.")
 
         response = self.chat_engine.chat(question)
         return str(response)
@@ -74,7 +70,7 @@ class RAGEngine:
         return self.chat(question)
 
     def reset_chat(self) -> None:
-        """Clear conversation memory buffer stored in RAM."""
+        """Clear conversation memory buffer."""
         if self.memory:
             self.memory.reset()
 
@@ -82,9 +78,9 @@ class RAGEngine:
         """Return the current indexing status."""
         return {
             "is_indexed": self.chat_engine is not None,
-            "current_url": self.current_url
+            "source_type": self.source_type,
+            "source_name": self.source_name
         }
 
 # Singleton instance to hold state across HTTP requests
 rag_engine = RAGEngine()
-

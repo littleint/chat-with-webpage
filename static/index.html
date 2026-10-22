@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LlamaIndex Web Reader — Interactive AI Q&A</title>
+    <title>LlamaReader AI — Chat with Webpages & Documents</title>
     <!-- Google Fonts: Inter & Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,14 +27,16 @@
                 <div class="brand-icon">
                     <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"
                         stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
-                        <path d="M2 12h20"></path>
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
                 </div>
                 <div>
                     <h1>LlamaReader AI</h1>
-                    <p class="subtitle">Chat with any webpage using LlamaIndex & Groq</p>
+                    <p class="subtitle">Unified RAG for Webpages, PDFs & TXT files</p>
                 </div>
             </div>
 
@@ -49,38 +51,111 @@
                 </button>
                 <div id="statusIndicator" class="status-badge idle">
                     <span class="status-dot"></span>
-                    <span id="statusText">No URL Indexed</span>
+                    <span id="statusText">No Source Loaded</span>
                 </div>
             </div>
         </header>
 
-        <!-- URL Input Card -->
-        <section class="url-card glass-panel">
-            <div class="url-input-wrapper">
-                <div class="url-icon">
-                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
-                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                    </svg>
+        <!-- Source Selection Card with Tabs -->
+        <section id="sourceCard" class="source-card glass-panel">
+            <!-- Collapsed summary bar (shown when active) -->
+            <div id="collapsedBar" class="collapsed-bar" style="display: none;">
+                <div class="active-source-info">
+                    <span id="activeSourceIcon">📄</span>
+                    <div class="active-source-text">
+                        <span class="active-source-label">Active Document</span>
+                        <strong id="activeSourceTitle">Document Name</strong>
+                    </div>
                 </div>
-                <input type="url" id="urlInput"
-                    placeholder="Enter any webpage URL (e.g., https://en.wikipedia.org/wiki/India)..."
-                    autocomplete="off" />
-                <button id="indexBtn" class="btn-primary">
-                    <span class="btn-text">Index Page</span>
-                    <span class="btn-loader spinner" style="display: none;"></span>
+                <button id="toggleSourceBtn" class="btn-secondary" title="Change or upload another document">
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+                        <path d="M12 20h9"></path>
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                    </svg>
+                    <span>Change Document</span>
                 </button>
             </div>
 
-            <!-- Quick Suggestions -->
-            <div class="quick-links">
-                <span class="quick-label">Try sample:</span>
-                <button class="chip" data-url="https://en.wikipedia.org/wiki/India">🇮🇳 India</button>
-                <button class="chip" data-url="https://en.wikipedia.org/wiki/Artificial_intelligence">🤖 AI
-                    Overview</button>
-                <button class="chip" data-url="https://en.wikipedia.org/wiki/Space_exploration">🚀 Space
-                    Exploration</button>
-                <button class="chip" data-url="https://docs.python.org/3/">🐍 Python Docs</button>
+            <!-- Expandable Body -->
+            <div id="sourceCardBody" class="source-card-body">
+                <!-- Tabs -->
+                <div class="tabs-header">
+                <button id="tabUrlBtn" class="tab-btn active">
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    </svg>
+                    <span>Web Page URL</span>
+                </button>
+                <button id="tabFileBtn" class="tab-btn">
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="12" y1="18" x2="12" y2="12"></line>
+                        <line x1="9" y1="15" x2="15" y2="15"></line>
+                    </svg>
+                    <span>Upload Document (PDF / TXT)</span>
+                </button>
+            </div>
+
+            <!-- Tab 1: URL Input -->
+            <div id="urlTabContent" class="tab-content active">
+                <div class="input-action-row">
+                    <div class="url-input-wrapper">
+                        <div class="url-icon">
+                            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                            </svg>
+                        </div>
+                        <input type="url" id="urlInput"
+                            placeholder="Enter any webpage URL (e.g., https://en.wikipedia.org/wiki/India)..."
+                            autocomplete="off" />
+                    </div>
+                    <button id="indexBtn" class="btn-primary">
+                        <span class="btn-text">Index Webpage</span>
+                        <span class="btn-loader spinner" style="display: none;"></span>
+                    </button>
+                </div>
+
+                <!-- Quick Suggestions -->
+                <div class="quick-links">
+                    <span class="quick-label">Try sample:</span>
+                    <button class="chip" data-url="https://en.wikipedia.org/wiki/India">🇮🇳 India</button>
+                    <button class="chip" data-url="https://en.wikipedia.org/wiki/Artificial_intelligence">🤖 AI Overview</button>
+                    <button class="chip" data-url="https://docs.python.org/3/">🐍 Python Docs</button>
+                </div>
+            </div>
+
+            <!-- Tab 2: File Upload (PDF / TXT) -->
+            <div id="fileTabContent" class="tab-content">
+                <div id="dropzone" class="file-dropzone">
+                    <input type="file" id="fileInput" accept=".pdf,.txt,.md,.log,.csv,.json" style="display: none;" />
+                    <div class="dropzone-icon">
+                        <svg viewBox="0 0 24 24" width="34" height="34" stroke="currentColor" stroke-width="1.8" fill="none">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                    </div>
+                    <div class="dropzone-text">
+                        <p class="dropzone-title">Click to browse or drag & drop your file here</p>
+                        <p class="dropzone-hint">Supports <strong>.PDF</strong>, <strong>.TXT</strong>, <strong>.MD</strong>, <strong>.CSV</strong></p>
+                    </div>
+                    <div id="selectedFileInfo" class="selected-file-badge" style="display: none;">
+                        <span id="selectedFileName">sample.pdf</span>
+                        <button id="cancelFileBtn" class="btn-remove-file" title="Remove">&times;</button>
+                    </div>
+                </div>
+                <div class="file-upload-actions">
+                    <button id="uploadFileBtn" class="btn-primary" disabled>
+                        <span class="btn-text">Process & Index Document</span>
+                        <span class="btn-loader spinner" style="display: none;"></span>
+                    </button>
+                </div>
+            </div>
+            <!-- Closing sourceCardBody -->
             </div>
         </section>
 
@@ -95,22 +170,21 @@
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                         </svg>
                     </div>
-                    <h2>Ask Questions About Any Webpage</h2>
-                    <p>Paste a link above, click <strong>Index Page</strong>, and start querying instantly. The AI
-                        models stay active in your RAM for instant answers.</p>
+                    <h2>Ask Questions About Webpages or Documents</h2>
+                    <p>Enter a URL or upload a <strong>PDF / TXT</strong> above to begin. The AI builds a vector index in RAM for instant, accurate retrieval.</p>
 
                     <div class="features-grid">
                         <div class="feature-item">
-                            <span class="feature-badge">⚡ Ultra Fast</span>
-                            <p>Powered by Groq's high-speed inference engine.</p>
+                            <span class="feature-badge">📄 PDF & Text Native</span>
+                            <p>Page-by-page semantic extraction with PyPDF.</p>
                         </div>
                         <div class="feature-item">
-                            <span class="feature-badge">🧠 Zero Weight Reloading</span>
-                            <p>Embedding models stay warm in FastAPI memory.</p>
+                            <span class="feature-badge">⚡ Lightning Groq LLM</span>
+                            <p>Zero wait times with instant inference speeds.</p>
                         </div>
                         <div class="feature-item">
-                            <span class="feature-badge">🎯 Precise RAG</span>
-                            <p>LlamaIndex retrieves relevant context accurately.</p>
+                            <span class="feature-badge">🧠 Conversational Memory</span>
+                            <p>Ask follow-ups naturally with context retention.</p>
                         </div>
                     </div>
                 </div>
@@ -120,7 +194,7 @@
             <div class="chat-input-container">
                 <div class="chat-input-wrapper">
                     <textarea id="questionInput" rows="1"
-                        placeholder="Ask a question about the indexed webpage (Press Enter to send)..."
+                        placeholder="Ask a question about the loaded source (Press Enter to send)..."
                         disabled></textarea>
                     <button id="sendBtn" class="btn-send" disabled title="Send question">
                         <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2"
